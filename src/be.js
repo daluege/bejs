@@ -1,34 +1,35 @@
-<esanum-header/>.element.render = function () {
-
-};
-
-
 function Be() {
   var registerElement = document.registerElement || document.register;
   if (!registerElement) throw new Error('Web Components are not supported');
   registerElement = registerElement.bind(document);
 
-  var be = this, factories = [], base = React.DOM, dictionary = base;
+  var parent = Object.create(React);
+  parent.createElement = React.createElement;
 
-  var createElement = React.createElement.bind(React);
+  var base = {}, namespace = base;
+  createNamespace();
 
-  be.registerFactory = function register(pattern, factory) {
-    dictionary = Object.create(dictionary);
-    factories.push({ pattern: pattern, source: factory || be.toClassName, dictionary: dictionary });
-    for (var i = 0, elements = document.getElementsByTagName('*'); i < elements.length; i++)
-      if (pattern.test(elements[i].tagName.toLowerCase())) bind(elements[i]); // TODO: optimize
+  Be = this;
+  Be.createNamespace = createNamespace;
+  Be.destroyNamespace = destroyNamespace;
+  Be.registerElement = registerElement;
+  Be.exec = exec;
+  Be.load = load;
+  React.createElement = createElement;
+
+  function createNamespace() {
+    var parent = namespace;
+    namespace = Object.create(namespace);
+    namespace.parent = namespace;
   };
-  be.registerElement = function register(name, factory) {
-    dictionary = Object.create(dictionary);
-    dictionary[pattern] = factory || be.toClassName;
+  function destroyNamespace() {
+    if (namespace.parent === base) throw 'No namespace available';
+    namespace = namespace.parent;
   }
-  be.toClassName = function toClassName(string) {
-    return string.replace(/(?:[-_]|^)(\w)/g, function (match, letter) { return letter.toUpperCase(); });
-  };
-  be.exec = function exec(source, options) {
+  function exec(source, options) {
     return JSXTransformer.exec(source, options);
-  };
-  be.load = function load(href, method, data, type) {
+  }
+  function load(href, method, data, type) {
     var xhr = new XMLHttpRequest;
     if (!xhr) return false;
     xhr.open(method || 'GET', href, true);
@@ -42,23 +43,29 @@ function Be() {
     }
     function load(data) {
       //data = JSON.parse(data);
-      console.log(be.exec(data));
+      console.log(exec(data));
     }
   };
-  React.createElement = be.createElement = function create(type) {
+  function createElement(type) {
     if (typeof type == 'string') {
-      if (!dictionary[type]) for (var i = 0; i < factories.length; i++) {
-        var factory = factories[i];
-        if (factory.pattern.test(type)) {
-          var component = factory.dictionary[type] = typeof factory.source == 'function' ? factory.source(type) : factory.source[type];
-          if (typeof component == 'string') try { component = eval('with(window){'+component+'\n}'); } catch (e) { component = null; console.debug('Create component <'+type+'/>: '+e.message); }
-          if (!component || typeof component == 'function') dictionary[type] = component;
-        }
+      if (namespace[type] === base[type]) {
+        alert([1,type,2]);
+        var component = namespace[type] = this.createClass({ render: render });
+        component.type = type;
+        type = component;
       }
-      if (typeof dictionary[type] == 'function') type = dictionary[type];
+      else type = namespace[type];
     }
     arguments[0] = type;
-    return createElement.apply(this, arguments);
+    console.log(arguments);
+    var element = parent.createElement.apply(parent, arguments), object = Object.create(element);
+    object.prototype = type.prototype;
+    return element;
+
+    function render() {
+      console.log(element.props.children);
+      return parent.createElement("h2", null, element.props.children);
+    }
   };
 
   var observer = new MutationObserver(function (mutations) {
@@ -67,13 +74,15 @@ function Be() {
       for (var j = 0; j < nodes.length; j++) swift(nodes[j]);
     }
   });
-  observer.observe(document.documentElement, { childList: true, subtree: true });
+  //observer.observe(document.documentElement, { childList: true, subtree: true });
 
-
-  be.routes = function routes(routes) {
-    return routes.forEach(be.route);
+  function render() {
+    return this.createElement("button");
+  }
+  function routes(routes) {
+    return routes.forEach(route);
   };
-  be.route = function route(route) {
+  function route(route) {
 
   }
 
@@ -85,11 +94,10 @@ function Be() {
     if (stop) return;
     switch (node.nodeType) {
       case 1:
+        var type = node.tagName.toLowerCase();
+        if (namespace[type] !== base[type]) bind(node);
         //var desc = node.getElementsByTagName('*');
-        for (var i = 0; i < factories.length; i++) {
-          if (factories[i].pattern.test(node.tagName.toLowerCase())) bind(node);
-          //for (var j = 0; j < desc.length; j++) if (factories[i].pattern.test(desc[j].tagName)) bind(desc[j]);
-        }
+        //for (var j = 0; j < desc.length; j++) if (factories[i].pattern.test(desc[j].tagName)) bind(desc[j]);
         break;
       default: for (var i = 0, children = node.childNodes; i < children.length; i++) swift(children[i]);
     }
@@ -108,7 +116,7 @@ function Be() {
           if (attr.specified) props[attr.name] = attr.value;
         }
         for (var i = 0, children = node.children; i < children.length; i++) args.push(transform(children[i]));
-        return be.createElement.apply(be, args);
+        return this.createElement.apply(this, args);
       case 3: return node.data;
       default: return null;
     }
