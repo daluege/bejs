@@ -1,0 +1,17 @@
+{
+  "name": "webjs",
+  "version": "0.0.1",
+  "homepage": "https://github.com/daluge/webjs",
+  "authors": [
+    "Filip Dalüge <daluege@gmail.com>"
+  ],
+  "description": "A client-side web component system",
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}
